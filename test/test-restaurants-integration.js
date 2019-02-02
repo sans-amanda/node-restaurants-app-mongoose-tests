@@ -88,18 +88,24 @@ describe('Restaurants API resource', function() {
   // `seedRestaurantData` and `tearDownDb` each return a promise,
   // so we return the value returned by these function calls.
   before(function() {
+    //responsible for starting the server
+    //note seperate database URL for tests!
     return runServer(TEST_DATABASE_URL);
   });
 
   beforeEach(function() {
+    //seeds our database with test data before each test runs
     return seedRestaurantData();
   });
 
   afterEach(function() {
+    //zeroes out our database after each test is run
+    //ensures there are no dependencies between tests
     return tearDownDb();
   });
 
   after(function() {
+    //calls close server after all tests are run
     return closeServer();
   });
 
@@ -117,19 +123,22 @@ describe('Restaurants API resource', function() {
       //
       // need to have access to mutate and access `res` across
       // `.then()` calls below, so declare it here so can modify in place
-      let res;
+      let res; 
+      //declare a `res` variable so we have a place to store some data...
+      //...across `.then` calls
       return chai.request(app)
-        .get('/restaurants')
-        .then(function(_res) {
+        .get('/restaurants') //make get request to restaurants
+        .then(function(_res) { //set response value to `_res`
           // so subsequent .then blocks can access response object
-          res = _res;
-          expect(res).to.have.status(200);
-          // otherwise our db seeding didn't work
+          res = _res; //res is now `_res` for this request
+          expect(res).to.have.status(200); // otherwise our db seeding didn't work
           expect(res.body.restaurants).to.have.lengthOf.at.least(1);
           return Restaurant.count();
+          //^^a Promise that will tell us the # of restaurants in the database
         })
-        .then(function(count) {
+        .then(function(count) { //take value returned by `Restaurant.count`
           expect(res.body.restaurants).to.have.lengthOf(count);
+          //assert that the # of restaurants in our res object is the same as `count`
         });
     });
 
@@ -138,24 +147,29 @@ describe('Restaurants API resource', function() {
       // Strategy: Get back all restaurants, and ensure they have expected keys
 
       let resRestaurant;
+      //declare a `resRestaurant` variable so we have a place to store some data...
+      //...across `.then` calls
       return chai.request(app)
-        .get('/restaurants')
-        .then(function(res) {
-          expect(res).to.have.status(200);
-          expect(res).to.be.json;
-          expect(res.body.restaurants).to.be.a('array');
-          expect(res.body.restaurants).to.have.lengthOf.at.least(1);
+        .get('/restaurants') //make get request to restaurants
+        .then(function(res) { //set response value to `_res`
+          expect(res).to.have.status(200); // otherwise our db seeding didn't work
+          expect(res).to.be.json;// shoudl be json object
+          expect(res.body.restaurants).to.be.a('array'); //should be an array
+          expect(res.body.restaurants).to.have.lengthOf.at.least(1); //should be at least 1
 
-          res.body.restaurants.forEach(function(restaurant) {
-            expect(restaurant).to.be.a('object');
-            expect(restaurant).to.include.keys(
+          res.body.restaurants.forEach(function(restaurant) { //iterate through JSON array
+            expect(restaurant).to.be.a('object'); //check that all are objects
+            expect(restaurant).to.include.keys( //check that all include these keys
               'id', 'name', 'cuisine', 'borough', 'grade', 'address');
           });
           resRestaurant = res.body.restaurants[0];
+          //^^ `resRestaurant` is now first restaurant object in aray for this request
           return Restaurant.findById(resRestaurant.id);
+          //get id value from restuarant object in `resRestaurant`
         })
         .then(function(restaurant) {
-
+          // check that key value pairs of restaurant object `resRestaurant`
+          //correspond with those in restaurant database
           expect(resRestaurant.id).to.equal(restaurant.id);
           expect(resRestaurant.name).to.equal(restaurant.name);
           expect(resRestaurant.cuisine).to.equal(restaurant.cuisine);
@@ -175,10 +189,12 @@ describe('Restaurants API resource', function() {
     it('should add a new restaurant', function() {
 
       const newRestaurant = generateRestaurantData();
+      // ^we create an object containing data about a restaurant
       let mostRecentGrade;
 
       return chai.request(app)
         .post('/restaurants')
+        // not post new data (`newRestaurant`) to `/restaurants` database
         .send(newRestaurant)
         .then(function(res) {
           expect(res).to.have.status(201);
@@ -194,11 +210,18 @@ describe('Restaurants API resource', function() {
 
           mostRecentGrade = newRestaurant.grades.sort(
             (a, b) => b.date - a.date)[0].grade;
+          //this assigns a value to `mostRecentGrade` that pulls the most recent 
+          //value for the key `grades` in the `newRestaurant` object
 
           expect(res.body.grade).to.equal(mostRecentGrade);
+          // check that `mostRecentGrade`  equals the 
+          //key value grade in `restaurants` databse
           return Restaurant.findById(res.body.id);
+          //get id value from restuarant object in `newRestaurant`
         })
         .then(function(restaurant) {
+          // check that key value pairs in restaurant database
+          //correspond with those in restaurant object `newRestaurant`
           expect(restaurant.name).to.equal(newRestaurant.name);
           expect(restaurant.cuisine).to.equal(newRestaurant.cuisine);
           expect(restaurant.borough).to.equal(newRestaurant.borough);
@@ -222,26 +245,34 @@ describe('Restaurants API resource', function() {
         name: 'fofofofofofofof',
         cuisine: 'futuristic fusion'
       };
+      //^^we create an object with the data we want to update
 
       return Restaurant
         .findOne()
+        //^^we retrieve an existing restaurant from databse
         .then(function(restaurant) {
           updateData.id = restaurant.id;
+          //^^ set id property on `updateData` to the .findOne id from database
 
           // make request then inspect it to make sure it reflects
           // data we sent
           return chai.request(app)
             .put(`/restaurants/${restaurant.id}`)
             .send(updateData);
+          //^^return result request
         })
         .then(function(res) {
+        //^^pull from returned res above (line 259)
           expect(res).to.have.status(204);
-
           return Restaurant.findById(updateData.id);
+          // we expect a 204 status and request the resaurant
+          //object from databse, based on updateData id
         })
         .then(function(restaurant) {
           expect(restaurant.name).to.equal(updateData.name);
           expect(restaurant.cuisine).to.equal(updateData.cuisine);
+          // get updated restaurant from databse, and make sure the updated values
+          // (name and cuisine) are actually updated!
         });
     });
   });
@@ -255,18 +286,25 @@ describe('Restaurants API resource', function() {
     it('delete a restaurant by id', function() {
 
       let restaurant;
-
+      //^^we create an object with the data we want to delete
       return Restaurant
         .findOne()
+        // get a restaurant object from database
         .then(function(_restaurant) {
           restaurant = _restaurant;
+          // assign response `_resstaurant` object to `restaurant` variable
           return chai.request(app).delete(`/restaurants/${restaurant.id}`);
+          //make delete request to database with id and return response
         })
         .then(function(res) {
+          //receive response from databse
           expect(res).to.have.status(204);
+          //expeet 204 status
           return Restaurant.findById(restaurant.id);
+          //make request to database to find deleted restaurant object by id and return response
         })
         .then(function(_restaurant) {
+          //response back shold confirm that restaurant is deleted/`null`
           expect(_restaurant).to.be.null;
         });
     });
